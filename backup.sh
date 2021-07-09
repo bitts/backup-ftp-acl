@@ -41,19 +41,25 @@ if [ "$instalado" -ne "0" ]; then
         #backup acl | para restaurar: setfacl --restore=acl_backup-{data}.acl
         acl_datainicial=`date +%s`
         echo "Inicio do backup ACL"
-        getfacl -R ${_origem} > ${_destino}/acl_backup-${_id}.acl 2> $_errlog \;
-        if [ $? -eq 0 ]
+        acl_backupeado=$(find ${_destino}/acl_backup-*.acl -mtime 0 2> $_errlog | wc -l)
+        if [ $acl_backupeado -eq 0 ]
         then
-                echo "Backup do ACL executado com sucesso."
-                find ${_destino}/acl_backup-*.acl -mtime +${_retencao} -exec rm {} 2> $_errlog \;
+                getfacl -R ${_origem} > ${_destino}/acl_backup-${_id}.acl 2> $_errlog \;
                 if [ $? -eq 0 ]
                 then
-                        echo "Backup com mais de um dia do ACL removido com sucesso."
+                        echo "Backup do ACL executado com sucesso."
+                        find ${_destino}/acl_backup-*.acl -mtime +${_retencao} -exec rm {} 2> $_errlog \;
+                        if [ $? -eq 0 ]
+                        then
+                                echo "Backup com mais de um dia do ACL removido com sucesso."
+                        else
+                                echo "Não foi possível remover backups antigos do ACL."
+                        fi
                 else
-                        echo "Não foi possível remover backups antigos do ACL."
+                        echo "Não foi possível gerar backup do ACL."
                 fi
         else
-                echo "Não foi possível gerar backup do ACL."
+                echo "Backup do ACL já realizado."
         fi
 
         #backup das configurações do apache
