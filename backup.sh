@@ -10,13 +10,15 @@ datainicial=`date +%s`
 
 
 _origem=/var/www        #origem dos backups
-_destino=/backup/1cta      #destino do backup
+_destino=/chucabum      #destino do backup
 
 _tar=$(which tar)
 _id=$(date +"%Y-%m-%d")
 
 _retencao=1             #valor em dias / remover arquivos com mais de X dias
 _errlog=/tmp/err-bkp_${_id}.log
+
+_debug=true
 
 instalado=$(dpkg --get-selections | grep -c tar)
 if [ "$instalado" -ne "0" ]; then
@@ -27,19 +29,25 @@ if [ "$instalado" -ne "0" ]; then
 	then
 		ftp_datainicial=`date +%s`
         #backup das configurações de ftp
-        $_tar -zcf ${_destino}/proftpd-${_id}.tar.gz /etc/proftpd/* 2>$_errlog
-        if [ $? -eq 0 ]
+        pftp_out=$($_tar -zcf ${_destino}/proftpd-${_id}.tar.gz /etc/proftpd/* 2>&$pftp_error)
+		[ -n $_debug ] && echo "Saida: \n $pftp_out"
+        if [ -z $pftp_out ]
         then
-			echo "Backup do proFTPd executado com sucesso."
-			find ${_destino}/proftpd-*.tar.gz -mtime +${_retencao} -exec rm {} \; 2>$_errlog
-			if [ $? -eq 0 ]
+			echo "Backup do proFTPd executado com sucesso."			
+			pftp_out_rm=$(find ${_destino}/proftpd-*.tar.gz -mtime +${_retencao} -exec rm {} \; 2>&$pftp_rm_error)
+			[ -n $_debug ] && echo "Saida: \n $pftp_out_rm"
+			if [ -z $pftp_rm_error ]
 			then
 				echo "Backup com mais de um dia do proFTPd removido com sucesso."
 			else
+				_errlog+=${pftp_rm_error}
 				echo "Não foi possível remover backups antigos do proFTPd. Verifique arquivo de log $_errlog"
-			fi
+				[ -n $_debug ] && echo "Erro: $pftp_rm_error"
+			fi			
         else
+			_errlog+=${pftp_error}
 			echo "Não foi possível gerar backup das configurações do proFTPd. Verifique arquivo de log $_errlog"
+			[ -n $_debug ] && echo "Erro: $pftp_error"
         fi
 		
 		ftp_datafinal=`date +%s`
@@ -62,19 +70,26 @@ if [ "$instalado" -ne "0" ]; then
 	if [ $acl_backupeado -eq 0 ]
 	then
 		acl_datainicial=`date +%s`
-		getfacl -R ${_origem} > ${_destino}/acl_backup-${_id}.acl 2>$_errlog 
-		if [ $? -eq 0 ]
+		facl_out=$(getfacl -R ${_origem} > ${_destino}/acl_backup-${_id}.acl 2>&$facl_error)
+		[ -n $_debug ] && echo "Saida: \n $facl_out"
+		if [ -z $facl_out ]
 		then
 			echo "Backup do ACL executado com sucesso."
-			find ${_destino}/acl_backup-*.acl -mtime +${_retencao} -exec rm {} \; 2>$_errlog
-			if [ $? -eq 0 ]
+			
+			facl_out_rm=$(find ${_destino}/acl_backup-*.acl -mtime +${_retencao} -exec rm {} \; 2>&$facl_rm_error)
+			[ -n $_debug ] && echo "Saida: $facl_out_rm"
+			if [ -z $facl_rm_error ]
 			then
 				echo "Backup com mais de um dia do ACL removido com sucesso."
 			else
+				_errlog+=${facl_rm_error}
 				echo "Não foi possível remover backups antigos do ACL. Verifique arquivo de log $_errlog"
+				[ -n $_debug ] && echo "Erro: $facl_rm_error"
 			fi
 		else
+			_errlog+=${facl_error}
 			echo "Não foi possível gerar backup do ACL. [Retenção: $_retencao dia(s)]. Verifique arquivo de log $_errlog"
+			[ -n $_debug ] && echo "Erro: $facl_error"
 		fi
 		
 		acl_datafinal=`date +%s`
@@ -94,17 +109,20 @@ if [ "$instalado" -ne "0" ]; then
 	if [ $apc_backupeado -eq 0 ]
 	then
 		apc_datainicial=`date +%s`
-        $_tar -zcf -C ${_destino}/configapache-{$_id}.tar.gz /etc/apache2/* 2> $_errlog
-        if [ $? -eq 0 ]
+        apch_out=$($_tar -zcf -C ${_destino}/configapache-{$_id}.tar.gz /etc/apache2/* 2>&$apch_error)
+		[ -n $_debug ] && echo "Saida: \n $apch_out"
+        if [ -z $apch_error ]
         then
 			echo "Backup do Apache2 executado com sucesso."
-			find ${_destino}/configapache-*.tar.gz -mtime +${_retencao} -exec rm {} \; 2>&$apch_error
-			if [ -z $apch_error ]
+			apch_out_rm=$(find ${_destino}/configapache-*.tar.gz -mtime +${_retencao} -exec rm {} \; 2>&$apch_rm_error)
+			[ -n $_debug ] && echo "Saida: $apch_out_rm"
+			if [ -z $apch_rm_error ]
 			then
 				echo "Backup com mais de um dia das configurações do apache2 removido com sucesso."
 			else
-				_errlog+=${$apch_error}
+				_errlog+=${$apch_rm_error}
 				echo "Não foi possível remover backups antigos do Apache2. [Retenção: $_retencao dia(s)] Verifique arquivo de log $_errlog"
+				[ -n $_debug ] && echo "Erro: $apch_rm_error"
 			fi
 			
 			apc_datafinal=`date +%s`
@@ -150,14 +168,17 @@ if [ "$instalado" -ne "0" ]; then
 				
 				psf_backupeado=$(find ${_origem}/${diretorio}/permission_${diretorio}-*.sh -mtime 0 2>$_errlog | wc -l)
 				if [ $psf_backupeado -eq 0 ]
+				then
 					_filePermission=${_origem}/${diretorio}/permission_${diretorio}-${_id}.sh
-					find /backup/ -type f | xargs stat -c "%a %U:%G %n" | awk '{print "chown "$2" "$3"\nchmod "$1" "$3}' >$_filePermission 2>&$permfile_error
+					find ${_origem}/${diretorio}/ -type f | xargs stat -c "%a %U:%G %n" | awk '{print "chown "$2" "$3"\nchmod "$1" "$3}' >$_filePermission 2>&$permfile_error
+					[ -n $_debug ] && cat $_filePermission
 					if [ -z $permfile_error ]
 					then
 						echo "Permissões do diretório $diretorio criados com sucesso no arquivo $_filePermission"
 					else
 						_errlog+=${permfile_error}
 						echo "Não foi possível criar arquivo com backup das permissões de arquivos do sistema"
+						[ -n $_debug ] && echo $permfile_error
 					fi
 				else
 					echo "Permissões dos arquivos do sistema para a pasta $diretorio já foram realizadas"
@@ -168,7 +189,8 @@ if [ "$instalado" -ne "0" ]; then
 				if [ -n $ERROR ]
 				then 
 					echo "Não foi possível realizar backup do diretorio $diretorio"
-					echo "Erro gerado pela compactação: \n $ERROR"
+					[ -n $_debug ] && echo "Erro gerado pela compactação: \n $ERROR"
+					[ -n $_debug ] && echo "Saida gerado pela compactação: \n $OUT"
 				else
 					if [ -e "${_destino}/${diretorio}_${_id}.tar.gz" ]
 					then
@@ -179,23 +201,27 @@ if [ "$instalado" -ne "0" ]; then
 						echo "Tamanho final do arquivo de backup ${_destino}/${diretorio}_${_id}.tar.gz (${tamanho_cpt})"
 
 						#removendo arquivos tar.gz com backup ja realizados para retenção definida em variavel
-						find ${_destino}/${diretorio}*.tar.gz -mtime +${_retencao} -exec rm {}\; 2>&$rmtargz_error
+						web_rm=$(find ${_destino}/${diretorio}*.tar.gz -mtime +${_retencao} -exec rm {}\; 2>&$rmtargz_error)
 						if [ -z $rmtargz_error ]
 						then
 							echo "Backup com mais de um dia do diretorio $diretorio removido com sucesso."
 						else
 							_errlog+=${rmtargz_error}
 							echo "Não foi possível remover backups antigos do diretorio no seguinte critério ${_destino}/${diretorio##*/}*.tar.gz"
+							[ -n $_debug ] && echo "Erro: \n $rmtargz_error"
+							[ -n $_debug ] && echo "Saida: $web_rm"
 						fi
 						
 						#removendo o arquivo contendo as permissões dos arquivos do sistema para recuperar backup basta executar script que contem caminho completo dos arquivos
-						find ${_origem}/${diretorio}/permission_${diretorio}-*.sh -mtime +${_retencao} -exec rm {}\; 2>&$perm_error
+						prm_rm=$(find ${_origem}/${diretorio}/permission_${diretorio}-*.sh -mtime +${_retencao} -exec rm {}\; 2>&$perm_error)
 						if [ -z $prm_error ]
 						then
 							echo "Backup com mais de um dia do diretorio do arquivo contendo as permissões de arquivo do sistema para o $diretorio foram removido com sucesso."
 						else
 							_errlog+=${perm_error}
 							echo "Não foi possível remover backups contendo as permissões dos arquivos do sistema para o diretorio ${diretorio}"
+							[ -n $_debug ] && echo "Erro: \n $perm_error"
+							[ -n $_debug ] && echo "Saida: $prm_rm"							
 						fi
 					else
 						echo "Arquivo de backup ${_destino}/${diretorio}_${_id}.tar.gz não encontrado no diretorio de destino. Backups antigos não seram removidos."
