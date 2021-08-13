@@ -6,6 +6,9 @@
 #v1.2 - 17/03/2021 | Correções diversas e logs de erro em arquivo
 #v1.3 - 13/07/2021 | Adição de testes logicos para poder rodar script e cancela-lo sempre que necessário sem perdas e sem que o mesmo realize backup de arquivos que já foram realizados
 
+#Melhorias:
+# - Script como servico no linux https://www.vivaolinux.com.br/topico/Shell-Script/Criacao-de-servicos
+
 datainicial=`date +%s`
 
 
