@@ -20,6 +20,7 @@ _errlog=/tmp/err-bkp_${_id}.log
 
 _debug=true
 
+#Backup de FTP realizados de forma unica para todas as suas configurações
 
 pftp_error=/tmp/pftp_error.log
 pftp_out=/tmp/pftp_out.log
@@ -82,10 +83,18 @@ bkp_ftp(){
         echo "Termino da procedimento de backup do FTP \n"
 }
 
+
+# configurações de facl serão backupeadas de acordo com cada pasta de destino e origem
+# funções receberam passagem de parametro
+# log unico para todos os backup e log próprio para a pasta backupeada
+
 facl_out=/tmp/facl_out.log
 facl_error=/tmp/facl_error.log
 
+#[TO DO] - ajustar os parametros passados e adaptar function para usa de parametros
 bkp_acl_rm(){
+        #_origem = $1
+        #_destino = $2
         echo "Inicio da remoção de backups antigos do facl...\n"
         find ${_destino} -name "acl_backup-*.acl" -mtime -${_retencao} -exec rm {} \; 1>$facl_out 2>$facl_error
         [ -n $_debug ] &&  printf %20s | sed 's/ /-/g' ; printf "\n Saida \n" ; cat $facl_out
@@ -100,7 +109,10 @@ bkp_acl_rm(){
         echo "Termino da remoção de backups antigos do facl.\n"
 }
 
+#[TO DO] - passar por parametro a pasta de destino e pasta de origem
 bkp_acl(){
+        #_origem = $1
+        #_destino = $2
         echo "Inicio do backup ACL...\n"
         acl_backupeado=$(find ${_destino} -name "acl_backup-*.acl" -mtime 0 2>$_errlog | wc -l)
         if [ $acl_backupeado -eq 0 ]
@@ -112,6 +124,7 @@ bkp_acl(){
                 then
                         echo "Backup do ACL executado com sucesso.\n"
                         bkp_acl_rm
+                        #bkp_acl_rm $_origem $_destino
                 else
                         cat $facl_error >> $_errlog
                         echo "Não foi possível gerar backup do ACL. [Retenção: $_retencao dia(s)]. Verifique arquivo de log $_errlog \n"
