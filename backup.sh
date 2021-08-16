@@ -20,15 +20,14 @@ _errlog=/tmp/err-bkp_${_id}.log
 
 _debug=true
 
-#Backup de FTP realizados de forma unica para todas as suas configurações
 
 pftp_error=/tmp/pftp_error.log
 pftp_out=/tmp/pftp_out.log
 
 bkp_ftp_rm(){
         echo "Procurando arquivos de backup antigos das configurações do FTP. [Retenção: $_retencao]\n"
-        find ${_destino} -name "proftpd-*.tar.gz" -mtime -${_retencao} -exec rm {} \; 1>$pftp_out 2>$pftp_error
-        [ -n $_debug ] &&  printf %20s | sed 's/ /-/g' ; printf "\n Saida \n" ; cat $pftp_out
+        find ${_destino} -name "proftpd-*.tar.gz" -mtime -${_retencao} -exec rm {} \; 1>&$pftp_out 2>&$pftp_error
+        [ -n $_debug ] && printf %20s | sed 's/ /-/g' && printf "\n Saida \n" && cat $pftp_out
         if [ -z $pftp_error ]
         then
                 echo "Backup com mais de um dia do proFTPd removido com sucesso.\n"
@@ -36,7 +35,7 @@ bkp_ftp_rm(){
         else
                 cat $pftp_error >> $_errlog
                 echo "Não foi possível remover backups antigos do proFTPd. Verifique arquivo de log $_errlog\n"
-                [ -n $_debug ] && printf "Erro: \n"; cat $pftp_error
+                [ -n $_debug ] && printf "Erro: \n" && cat $pftp_error
                 rm $pftp_error
         fi
         echo "Termino da procura e remoção de backup antigos.\n"
@@ -47,13 +46,13 @@ bkp_ftp(){
         instalado=$(dpkg --get-selections | grep -c tar)
         if [ "$instalado" -ne "0" ]; then
         echo "Inicio do backup de FTP.\n"
-        ftp_backupeado=$(find ${_destino} -name "proftpd-*.tar.gz" -mtime 0 2>$_errlog | wc -l)
+        ftp_backupeado=$(find ${_destino} -name "proftpd-*.tar.gz" -mtime 0 2>&$_errlog | wc -l)
         if [ $ftp_backupeado -eq 0 ]
         then
                         ftp_datainicial=`date +%s`
                         #backup das configurações de ftp
                         $_tar -zcf ${_destino}/proftpd-${_id}.tar.gz /etc/proftpd/* 2>$pftp_error 1>$pftp_out
-                        [ -n $_debug ] &&  printf %20s | sed 's/ /-/g' ; printf "\n Saida \n" ; cat $pftp_out
+                        [ -n $_debug ] && printf %20s | sed 's/ /-/g' && printf "\n Saida \n" && cat $pftp_out
                         if [ -z $pftp_out ]
                         then
                                 echo "Backup do proFTPd executado com sucesso.\n"
@@ -61,7 +60,7 @@ bkp_ftp(){
                         else
                                 cat $pftp_error >> $_errlog
                                 echo "Não foi possível gerar backup das configurações do proFTPd. Verifique arquivo de log $_errlog \n"
-                                [ -n $_debug ] && printf "Erro: \n"; cat $pftp_error
+                                [ -n $_debug ] && printf "Erro: \n" && cat $pftp_error
                                 rm $pftp_error
                         fi
 
@@ -84,51 +83,40 @@ bkp_ftp(){
 }
 
 
-# configurações de facl serão backupeadas de acordo com cada pasta de destino e origem
-# funções receberam passagem de parametro
-# log unico para todos os backup e log próprio para a pasta backupeada
-
 facl_out=/tmp/facl_out.log
 facl_error=/tmp/facl_error.log
 
-#[TO DO] - ajustar os parametros passados e adaptar function para usa de parametros
 bkp_acl_rm(){
-        #_origem = $1
-        #_destino = $2
         echo "Inicio da remoção de backups antigos do facl...\n"
-        find ${_destino} -name "acl_backup-*.acl" -mtime -${_retencao} -exec rm {} \; 1>$facl_out 2>$facl_error
-        [ -n $_debug ] &&  printf %20s | sed 's/ /-/g' ; printf "\n Saida \n" ; cat $facl_out
+        find ${_destino} -name "acl_backup-*.acl" -mtime -${_retencao} -exec rm {} \; 1>&$facl_out 2>&$facl_error
+        [ -n $_debug ] && printf %20s | sed 's/ /-/g' && printf "\n Saida \n" && cat $facl_out
         if [ -z $facl_error ]
         then
                 echo "Backup com mais de um dia do ACL removido com sucesso.\n"
         else
                 cat $facl_error >> $_errlog
                 echo "Não foi possível remover backups antigos do ACL. Verifique arquivo de log $_errlog \n"
-                [ -n $_debug ] && printf "Erro: \n"; cat $facl_error
+                [ -n $_debug ] && printf "Erro: \n" && cat $facl_error
         fi
         echo "Termino da remoção de backups antigos do facl.\n"
 }
 
-#[TO DO] - passar por parametro a pasta de destino e pasta de origem
 bkp_acl(){
-        #_origem = $1
-        #_destino = $2
         echo "Inicio do backup ACL...\n"
         acl_backupeado=$(find ${_destino} -name "acl_backup-*.acl" -mtime 0 2>$_errlog | wc -l)
         if [ $acl_backupeado -eq 0 ]
         then
                 acl_datainicial=`date +%s`
-                getfacl -R ${_origem} > ${_destino}/acl_backup-${_id}.acl 2>$facl_error 1>$facl_out
-                [ -n $_debug ] &&  printf %20s | sed 's/ /-/g' ; printf "\n Saida \n" ; cat $facl_out
+                getfacl -R ${_origem} > ${_destino}/acl_backup-${_id}.acl 2>&$facl_error 1>&$facl_out
+                [ -n $_debug ] &&  printf %20s | sed 's/ /-/g' && printf "\n Saida \n" && cat $facl_out
                 if [ -z $facl_out ]
                 then
                         echo "Backup do ACL executado com sucesso.\n"
                         bkp_acl_rm
-                        #bkp_acl_rm $_origem $_destino
                 else
                         cat $facl_error >> $_errlog
                         echo "Não foi possível gerar backup do ACL. [Retenção: $_retencao dia(s)]. Verifique arquivo de log $_errlog \n"
-                        [ -n $_debug ] && printf "Erro: \n"; cat $facl_error
+                        [ -n $_debug ] && printf "Erro: \n" && cat $facl_error
                 fi
 
         acl_datafinal=`date +%s`
@@ -143,7 +131,7 @@ bkp_acl(){
         echo "Fim do backup ACL.\n"
 }
 
-#bkp_ftp
+bkp_ftp
 #bkp_acl
 
 # fazer o bkp_acl receber parametro da pasta
