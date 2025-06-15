@@ -132,14 +132,5 @@ bkp_acl(){
 }
 
 bkp_ftp
-#bkp_acl
+bkp_acl
 
-# fazer o bkp_acl receber parametro da pasta
-bkp(){
-        _pasta=$1
-echo "---> $_pasta"
-
-}
-
-
-bkp "testes"
