@@ -1,6 +1,7 @@
 #!/bin/bash
 
 #Create by Marcelo Valvassori Bittencourt
+#Exercito Brasileiro - 1º Centro de Telemática de Área - 1º CTA
 #v1.0 - 14/10/2020 | SGO - Seção de Gerenciamento das Operações | script de backup por pasta
 #v1.1 - 23/11/2020 | Adição de remoção de backup antigos do ACL após execução com sucesso de backup do mesmo.
 #v1.2 - 17/03/2021 | Correções diversas e logs de erro em arquivo
